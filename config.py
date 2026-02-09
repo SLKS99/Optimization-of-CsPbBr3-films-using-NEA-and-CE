@@ -13,8 +13,8 @@ PRECURSOR3 = "CE"
 
 # Measurement Parameters (for raw luminescence data workflow only)
 # These are only used if USE_PEAK_DATA = False
-START_WAVELENGTH = 450
-END_WAVELENGTH = 850
+START_WAVELENGTH = 401
+END_WAVELENGTH = 700
 WAVELENGTH_STEP_SIZE = 1
 TIME_STEP = 15  # minutes between measurements
 NUMBER_OF_READS = 42
@@ -74,18 +74,18 @@ CS_MAX = 0.2   # Cs maximum concentration
 NEA_MIN = 0.0  # NEA minimum concentration
 NEA_MAX = 0.4  # NEA maximum concentration
 CE_MIN = 0.0   # CE (Crown Ether) minimum concentration
-CE_MAX = 0.4   # CE (Crown Ether) maximum concentration
+CE_MAX = 0.1  # CE (Crown Ether) maximum concentration
 
 # Legacy parameters (kept for backward compatibility, but not used in new system)
 GRID_MAX = 1.0
 COMPOSITION_MIN = 0.1
 COMPOSITION_MAX = 1.0
-ADDITIVE_MAX = 0.4
+ADDITIVE_MAX = 0.1
 
 NOISE_PRIOR_SCALE = 0.1  # Scale parameter for GP noise prior (HalfNormal distribution)
 
 # Instability Score Parameters
-TARGET_WAVELENGTH = 465
+TARGET_WAVELENGTH = 470
 WAVELENGTH_TOLERANCE = 5
 DEGRADATION_WEIGHT = 0.3
 POSITION_WEIGHT = 0.7
