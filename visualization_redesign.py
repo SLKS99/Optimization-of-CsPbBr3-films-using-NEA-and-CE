@@ -4,6 +4,7 @@ Focus: Clarity, actionability, and intuitive presentation
 """
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from scipy.interpolate import griddata
@@ -247,11 +248,99 @@ def create_enhanced_visualizations(results, output_dir):
     print(f"[OK] Comparative analysis saved: {comparison_file}")
     plt.close()
     
+    # ==========================================
+    # FIGURE 4: Marginal Effects on Peak Position and FWHM
+    # ==========================================
+    # These plots are based on the measured data (not the full grid).
+    try:
+        base_dir = os.path.dirname(output_dir)
+        updated_dir = os.path.join(base_dir, config.UPDATED_DATASETS_DIR)
+        peak_path = os.path.join(updated_dir, 'combined_peak_data_full.csv')
+        inten_path = os.path.join(updated_dir, 'intensity_combined_full.csv')
+
+        peak_df = pd.read_csv(peak_path)
+        inten_df = pd.read_csv(inten_path)
+
+        # Attach composition information
+        if all(col in inten_df.columns for col in ['Cs Con', 'NEA Con', 'CE']):
+            peak_df = peak_df.join(inten_df[['Cs Con', 'NEA Con', 'CE']])
+        else:
+            raise KeyError("Intensity dataset does not contain ['Cs Con','NEA Con','CE']")
+
+        # Keep only rows with valid peak data
+        valid_mask = (peak_df['initial_peak_positions'] > 0) & (peak_df['initial_peak_fwhm'] > 0)
+        peak_df = peak_df[valid_mask].copy()
+
+        if not peak_df.empty:
+            fig4 = plt.figure(figsize=(18, 8))
+            gs4 = gridspec.GridSpec(2, 3, figure=fig4, hspace=0.35, wspace=0.3)
+
+            def component_curve(df, comp_col, target_col, n_bins=10):
+                x_min, x_max = df[comp_col].min(), df[comp_col].max()
+                if x_max <= x_min or np.isnan(x_min) or np.isnan(x_max):
+                    return None, None
+                centers = np.linspace(x_min, x_max, n_bins)
+                half_bin = (centers[1] - centers[0]) / 2.0
+                y_vals = []
+                for c in centers:
+                    m = (df[comp_col] >= c - half_bin) & (df[comp_col] <= c + half_bin)
+                    vals = df.loc[m, target_col]
+                    y_vals.append(vals.mean() if len(vals) > 0 else np.nan)
+                return centers, np.array(y_vals)
+
+            # Row 1: final peak position vs components
+            for idx, (comp_col, title) in enumerate(
+                [('Cs Con', f'{config.PRECURSOR1}'),
+                 ('NEA Con', f'{config.PRECURSOR2}'),
+                 ('CE',      f'{config.PRECURSOR3}')]
+            ):
+                ax = fig4.add_subplot(gs4[0, idx])
+                x, y = component_curve(peak_df, comp_col, 'final_peak_positions')
+                if x is not None:
+                    ax.plot(x, y, 'o-', linewidth=2, markersize=6)
+                    ax.set_xlabel(f'{title} Concentration', fontsize=10)
+                    ax.set_ylabel('Final Peak Wavelength (nm)', fontsize=10)
+                    ax.set_title(f'Peak Position vs {title}', fontsize=11,
+                                 fontweight='bold', pad=6)
+                    ax.grid(True, alpha=0.3)
+                else:
+                    ax.axis('off')
+
+            # Row 2: initial FWHM vs components
+            for idx, (comp_col, title) in enumerate(
+                [('Cs Con', f'{config.PRECURSOR1}'),
+                 ('NEA Con', f'{config.PRECURSOR2}'),
+                 ('CE',      f'{config.PRECURSOR3}')]
+            ):
+                ax = fig4.add_subplot(gs4[1, idx])
+                x, y = component_curve(peak_df, comp_col, 'initial_peak_fwhm')
+                if x is not None:
+                    ax.plot(x, y, 's-', linewidth=2, markersize=6, color='#e67e22')
+                    ax.set_xlabel(f'{title} Concentration', fontsize=10)
+                    ax.set_ylabel('Initial Peak FWHM (nm)', fontsize=10)
+                    ax.set_title(f'FWHM vs {title}', fontsize=11,
+                                 fontweight='bold', pad=6)
+                    ax.grid(True, alpha=0.3)
+                else:
+                    ax.axis('off')
+
+            plt.suptitle('Marginal Component Effects on Peak Position and FWHM',
+                         fontsize=16, fontweight='bold', y=0.98)
+            peak_shape_file = os.path.join(output_dir, 'peak_shape_marginals.png')
+            plt.savefig(peak_shape_file, dpi=config.PLOT_DPI, bbox_inches='tight')
+            print(f"[OK] Peak-shape marginals saved: {peak_shape_file}")
+            plt.close()
+        else:
+            print("No valid peak data found for marginal peak-shape plots; skipping.")
+    except Exception as e:
+        print(f"Could not generate marginal peak-shape plots: {e}")
+
     print(f"\n{'='*60}")
     print(f"All visualizations generated successfully!")
     print(f"  1. Executive Dashboard: {dashboard_file}")
     print(f"  2. CE Slice Analysis: {slices_file}")
     print(f"  3. Comparative Analysis: {comparison_file}")
+    print(f"  4. Peak-shape Marginals: {peak_shape_file if 'peak_shape_file' in locals() else 'N/A'}")
     print(f"{'='*60}\n")
 
 
