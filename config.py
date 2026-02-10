@@ -69,12 +69,13 @@ GRID_RESOLUTION = 0.01  # Grid step size for search space
 PBBR_FIXED = 0.2  # Fixed concentration for PbBr
 
 # Independent concentration ranges for optimization:
-CS_MIN = 0.1   # Cs minimum concentration
-CS_MAX = 0.2   # Cs maximum concentration
-NEA_MIN = 0.0  # NEA minimum concentration
-NEA_MAX = 0.4  # NEA maximum concentration
-CE_MIN = 0.0   # CE (Crown Ether) minimum concentration
-CE_MAX = 0.1  # CE (Crown Ether) maximum concentration
+CS_MIN = 0.1   # Cs minimum concentration (10%)
+CS_MAX = 0.18   # Cs maximum concentration (20%)
+NEA_MIN = 0.0  # NEA minimum concentration (0%)
+NEA_MAX = 0.4  # NEA maximum concentration (40%)
+CE_MIN = 0.02   # CE (Crown Ether) minimum concentration (0% - corresponds to 0 M)
+CE_MAX = 0.08  # CE (Crown Ether) maximum concentration (40% - corresponds to 0.08 M)
+# Note: CE percentage = (CE_M / 0.02) × 10%, so 0.08 M = 40%
 
 # Legacy parameters (kept for backward compatibility, but not used in new system)
 GRID_MAX = 1.0
@@ -85,10 +86,10 @@ ADDITIVE_MAX = 0.1
 NOISE_PRIOR_SCALE = 0.1  # Scale parameter for GP noise prior (HalfNormal distribution)
 
 # Instability Score Parameters
-TARGET_WAVELENGTH = 470
-WAVELENGTH_TOLERANCE = 5
-DEGRADATION_WEIGHT = 0.3
-POSITION_WEIGHT = 0.7
+TARGET_WAVELENGTH = 460
+WAVELENGTH_TOLERANCE = 3
+DEGRADATION_WEIGHT = 0.2
+POSITION_WEIGHT = 0.8
 MULTIPLE_PEAK_PENALTY = 0.5
 TUNE_THRESHOLD_PERCENT = 0.8
 

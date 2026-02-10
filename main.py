@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
 
 # Import custom modules
 import config
@@ -352,29 +353,49 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
     # Calculate instability scores
     print("Calculating instability scores...")
     if peak_data is not None:
+        # 1. Compute per‑measured‑point quality score from peak features
         y_tune_score = instability_score_simple(
             peak_data,
             target_wavelength=config.TARGET_WAVELENGTH,
             wavelength_tolerance=config.WAVELENGTH_TOLERANCE,
             degradation_weight=config.DEGRADATION_WEIGHT,
-            position_weight=config.POSITION_WEIGHT
+            position_weight=config.POSITION_WEIGHT,
         )
+        # Normalize to [0, 1]; lower = better
         y_tune_score = (y_tune_score - np.min(y_tune_score)) / (
             np.max(y_tune_score) - np.min(y_tune_score) + 1e-10
         )
-        
-        # Tune GP
-        print("Training stability GP model...")
-        init_tune_score, adjust_tune_score = tune_gp(
-            X_int_norm, y_tune_score, Xnew,
-            kernel_prior_func, noise_prior_dist,
-            thre_percent=config.TUNE_THRESHOLD_PERCENT
-        )
-        
-        # Adjust acquisition
-        acq_tune = acq.at[np.where(
-            init_tune_score > np.quantile(init_tune_score, config.TUNE_THRESHOLD_PERCENT)
-        )].set(0)
+
+        # 2. Propagate this score from measured points (X_int_norm)
+        #    to the full search grid (Xnew) via a smooth nearest‑neighbour
+        #    interpolation (no second GP to avoid gpax issues).
+        print("Propagating stability/quality scores over search grid...")
+        X_meas = np.array(X_int_norm)
+        X_grid = np.array(Xnew)
+
+        tree = cKDTree(X_meas)
+        # Use k nearest neighbours to smooth the score field
+        k = min(5, len(X_meas))
+        dists, idxs = tree.query(X_grid, k=k)
+
+        if k == 1:
+            neighbour_scores = y_tune_score[idxs]
+            quality_grid = 1.0 - neighbour_scores
+        else:
+            # Radial basis weighting: closer neighbours have more influence
+            # Characteristic length scale in normalized space
+            sigma = 0.1
+            weights = np.exp(-(dists ** 2) / (2.0 * sigma ** 2))
+            weights_sum = np.sum(weights, axis=1, keepdims=True) + 1e-12
+            weights_norm = weights / weights_sum
+            neighbour_scores = y_tune_score[idxs]  # shape (N_grid, k)
+            # Convert penalty (0=best) to quality (1=best)
+            neighbour_quality = 1.0 - neighbour_scores
+            quality_grid = np.sum(weights_norm * neighbour_quality, axis=1)
+
+        # 3. Use this quality field to modulate the acquisition function
+        #    (high quality → keep acquisition, low quality → suppress).
+        adjust_tune_score = jnp.array(quality_grid)
         acq_tune = acq * adjust_tune_score
     else:
         print("Warning: No peak data available. Using standard acquisition only.")
@@ -811,8 +832,15 @@ def main():
     
     next_batch_df = save_next_batch_results(results['X_next_batch_int_acq'], results_dir)
     
-    # Create visualizations
-    create_visualizations(results, results_dir)
+    # Create visualizations - NEW ENHANCED VERSION
+    print("\n=== Step 4: Generating Visualizations ===")
+    try:
+        from visualization_redesign import create_enhanced_visualizations
+        create_enhanced_visualizations(results, results_dir)
+        print("Using enhanced visualization system")
+    except ImportError:
+        print("Enhanced visualization not available, using legacy version")
+        create_visualizations(results, results_dir)
     
     print("\n" + "=" * 60)
     print("Analysis Complete!")

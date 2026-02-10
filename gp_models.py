@@ -217,20 +217,38 @@ def calculate_acquisition(
         noiseless=False, jitter=jitter
     )
     
-    # Get predictions with uncertainty
-    y_pred, y_sampled = gp_model.predict_in_batches(
-        rng_key2, X_search, noiseless=False, jitter=jitter
-    )
+    # Get predictions with uncertainty.
+    # NOTE: gpax.models.gp.predict_in_batches has a known bug where it can raise
+    # UnboundLocalError for very small grids (batch counter `i` never set).
+    # To make the workflow robust, fall back to the standard `predict` call.
+    try:
+        y_pred, y_sampled = gp_model.predict_in_batches(
+            rng_key2, X_search, noiseless=False, jitter=jitter
+        )
+    except UnboundLocalError:
+        # Fallback: single-batch prediction
+        y_pred, y_var = gp_model.predict(
+            rng_key2, X_search, noiseless=False, jitter=jitter
+        )
+        # Approximate sampled predictions from mean/variance
+        # (1 sample; std is derived below)
+        y_sampled = y_pred
     
-    # Calculate uncertainty (standard deviation) from sampled predictions
-    # y_sampled shape: (n_samples, n_points) or (n_points,) if single sample
+    # Calculate uncertainty (standard deviation) from sampled predictions.
+    # y_sampled shape: (n_samples, n_points) or (n_points,) if single sample.
     y_sampled_array = np.array(y_sampled)
-    if y_sampled_array.ndim > 1:
+
+    # Handle edge case where search grid (and hence predictions) is empty.
+    if y_sampled_array.size == 0 or y_pred.size == 0:
+        y_std = np.array(y_pred)  # empty array with same dtype/shape
+    elif y_sampled_array.ndim > 1:
         y_std = np.std(y_sampled_array, axis=0)
     else:
-        # If single sample, use a small constant uncertainty or calculate from variance
-        # For now, use a small fraction of the prediction range as uncertainty estimate
-        y_std = np.ones_like(y_pred) * (np.max(y_pred) - np.min(y_pred)) * 0.05
+        # If single sample, approximate uncertainty as a small fraction
+        # of the prediction range.
+        y_pred_np = np.array(y_pred)
+        pred_range = float(np.max(y_pred_np) - np.min(y_pred_np)) if y_pred_np.size > 0 else 0.0
+        y_std = np.ones_like(y_pred_np) * (pred_range * 0.05)
     
     return acq, y_pred, y_sampled, y_std
 
@@ -281,9 +299,17 @@ def tune_gp(
     )
     
     gp_model.fit(rng_key1, X_measured, y_tune_score, jitter=1e-5)
-    y_pred, y_sampled = gp_model.predict_in_batches(
-        rng_key2, X_unmeasured, noiseless=False, jitter=jitter
-    )
+
+    # Use batched prediction when possible; fall back to standard predict to
+    # avoid gpax's UnboundLocalError on very small grids.
+    try:
+        y_pred, y_sampled = gp_model.predict_in_batches(
+            rng_key2, X_unmeasured, noiseless=False, jitter=jitter
+        )
+    except UnboundLocalError:
+        y_pred, y_var = gp_model.predict(
+            rng_key2, X_unmeasured, noiseless=False, jitter=jitter
+        )
     
     thre_value = np.quantile(y_pred, thre_percent)
     adjust_tune_score = jnp.where(y_pred > thre_value, 0, y_pred)

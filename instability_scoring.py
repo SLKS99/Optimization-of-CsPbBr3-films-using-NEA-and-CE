@@ -106,56 +106,119 @@ def instability_score_simple(
     position_weight: float
 ) -> np.ndarray:
     """
-    Simplified instability score focusing on intensity change and peak position.
+    Simplified score that combines:
+    - how close the peak wavelength is to the target (e.g. pure blue ~460 nm)
+    - how bright the peak is at the initial read
+
+    This version is intended for workflows where we are NOT tracking
+    time‑dependent degradation, but instead want to:
+    - **maximize initial intensity**
+    - **strongly prefer wavelengths near the target**
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     df : pd.DataFrame
-        DataFrame with columns: initial_peak_positions, final_peak_positions,
+        DataFrame with columns:
+        initial_peak_positions, final_peak_positions,
         initial_peak_intensities, final_peak_intensities
     target_wavelength : float
-        Target wavelength for peak analysis
+        Target wavelength (e.g. 460 for pure blue)
     wavelength_tolerance : float
-        Tolerance range for target wavelength
+        Range around target where no wavelength penalty is applied
     degradation_weight : float
-        Weight for intensity degradation component
+        Weight for the *intensity* term (higher = care more about brightness)
     position_weight : float
-        Weight for position deviation component
+        Weight for the wavelength term (higher = care more about color / λ)
         
-    Returns:
-    --------
+    Returns
+    -------
     np.ndarray
-        Array of instability scores
+        Array of penalty‑like scores in [0, 1],
+        where 0 = ideal (bright + on‑target wavelength),
+        1 = worst (dim + far from target).
     """
-    max_score = 1
-    stb_scores = []
+    max_score = 1.0
+    stb_scores: List[float] = []
+
+    # Use global statistics for normalization
+    max_initial_intensity = max(float(df["initial_peak_intensities"].max()), 1e-10)
+
+    has_fwhm = "initial_peak_fwhm" in df.columns
+    has_left = "initial_left_area" in df.columns
+    has_right = "initial_right_area" in df.columns
+
+    if has_fwhm:
+        fwhm_vals = df["initial_peak_fwhm"].replace(0, np.nan)
+        valid_fwhm = fwhm_vals.dropna()
+        fwhm_min = float(valid_fwhm.min()) if not valid_fwhm.empty else 0.0
+        fwhm_max = float(valid_fwhm.max()) if not valid_fwhm.empty else 1.0
+    else:
+        fwhm_min, fwhm_max = 0.0, 1.0
     
     for _, row in df.iterrows():
-        peak_positions_int = row['initial_peak_positions']
-        peak_positions_fin = row['final_peak_positions']
-        peak_intensities_int = row['initial_peak_intensities']
-        peak_intensities_fin = row['final_peak_intensities']
+        peak_positions_int = row["initial_peak_positions"]
+        peak_positions_fin = row["final_peak_positions"]
+        peak_intensities_int = row["initial_peak_intensities"]
+        peak_fwhm_int = row["initial_peak_fwhm"] if has_fwhm else np.nan
+        left_area = row["initial_left_area"] if has_left else np.nan
+        right_area = row["initial_right_area"] if has_right else np.nan
         
-        # Intensity change component
-        intensity_change = np.abs(peak_intensities_fin - peak_intensities_int) / max(
-            peak_intensities_int, 1e-10
-        )
-        intensity_score = min(intensity_change, max_score) * degradation_weight
-        
-        # Position deviation component
+        # ----- Wavelength / color penalty -----
+        # Use the closer of initial / final wavelength to the target
         position_deviation = min(
             abs(peak_positions_fin - target_wavelength),
-            abs(peak_positions_int - target_wavelength)
+            abs(peak_positions_int - target_wavelength),
         )
-        position_score = (
-            0 if position_deviation <= wavelength_tolerance
-            else (position_deviation / target_wavelength) * position_weight
-        )
-        position_score = min(position_score, max_score)
+        if np.isnan(position_deviation):
+            position_deviation = 0.0
+
+        if position_deviation <= wavelength_tolerance:
+            position_penalty = 0.0
+        else:
+            position_penalty = min(position_deviation / target_wavelength, 1.0)
         
-        # Total score
-        total_score = intensity_score + position_score
-        total_score = min(total_score, 1)
+        # ----- Intensity penalty (based only on initial intensity) -----
+        if np.isnan(peak_intensities_int) or peak_intensities_int <= 0:
+            # No signal → worst case
+            intensity_penalty = 1.0
+        else:
+            norm_intensity = min(peak_intensities_int / max_initial_intensity, 1.0)
+            # Brightest peaks (norm_intensity≈1) → low penalty
+            intensity_penalty = 1.0 - norm_intensity
+
+        # ----- FWHM / width penalty (narrower = better) -----
+        if has_fwhm and not np.isnan(peak_fwhm_int) and fwhm_max > fwhm_min:
+            fwhm_norm = (peak_fwhm_int - fwhm_min) / (fwhm_max - fwhm_min)
+            width_penalty = float(np.clip(fwhm_norm, 0.0, 1.0))
+        else:
+            width_penalty = 0.0
+
+        # ----- Asymmetry penalty (left/right area similarity, lower = better) -----
+        if has_left and has_right and (not np.isnan(left_area)) and (not np.isnan(right_area)):
+            area_sum = max(left_area + right_area, 1e-10)
+            asymmetry = abs(left_area - right_area) / area_sum
+            asym_penalty = float(np.clip(asymmetry, 0.0, 1.0))
+        else:
+            asym_penalty = 0.0
+        
+        # ----- Combine with configurable weights -----
+        # We interpret:
+        # - degradation_weight: intensity weight
+        # - position_weight: wavelength / color weight
+        # Distribute remaining weight across width & asymmetry if available.
+        w_int = degradation_weight
+        w_pos = position_weight
+        remaining = max(1.0 - (w_int + w_pos), 0.0)
+        w_width = remaining * 0.6  # give more of remaining to FWHM
+        w_asym = remaining * 0.4   # and some to symmetry
+
+        total_score = (
+            w_int * intensity_penalty
+            + w_pos * position_penalty
+            + w_width * width_penalty
+            + w_asym * asym_penalty
+        )
+        total_score = min(total_score, max_score)
         stb_scores.append(total_score)
     
     return np.array(stb_scores)

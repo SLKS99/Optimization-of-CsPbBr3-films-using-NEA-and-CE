@@ -426,6 +426,53 @@ def extract_all_peaks(row: pd.Series, max_peaks: int = 5) -> Tuple[np.ndarray, n
     return np.array(positions), np.array(intensities)
 
 
+def extract_peak_shape_features(
+    row: pd.Series,
+    max_peaks: int = 5
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Extract peak shape features (FWHM and left/right areas) from a row.
+    Reads directly from CSV columns.
+
+    Parameters
+    ----------
+    row : pd.Series
+        Row from peak dataframe (already contains fitted peak data)
+    max_peaks : int
+        Maximum number of peaks to extract (default: 5)
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Arrays of FWHM, left areas, right areas for each peak.
+        Missing values are filled with 0.0.
+    """
+    fwhm_vals = []
+    left_areas = []
+    right_areas = []
+
+    for i in range(1, max_peaks + 1):
+        fwhm_col = f"Peak_{i}_FWHM"
+        left_col = f"Peak_{i}_LeftArea"
+        right_col = f"Peak_{i}_RightArea"
+
+        fwhm = row.get(fwhm_col, 0.0)
+        left = row.get(left_col, 0.0)
+        right = row.get(right_col, 0.0)
+
+        if pd.isna(fwhm):
+            fwhm = 0.0
+        if pd.isna(left):
+            left = 0.0
+        if pd.isna(right):
+            right = 0.0
+
+        fwhm_vals.append(float(fwhm))
+        left_areas.append(float(left))
+        right_areas.append(float(right))
+
+    return np.array(fwhm_vals), np.array(left_areas), np.array(right_areas)
+
 def reduce_to_max_peak(peaks_array: np.ndarray) -> np.ndarray:
     """
     Reduce multiple peaks to only the maximum peak per composition.
@@ -495,8 +542,15 @@ def create_peak_dataset(
     # No peak fitting - just reading the data
     peaks_pos_initial_list = []
     peaks_int_initial_list = []
+    peaks_fwhm_initial_list = []
+    peaks_leftarea_initial_list = []
+    peaks_rightarea_initial_list = []
+
     peaks_pos_final_list = []
     peaks_int_final_list = []
+    peaks_fwhm_final_list = []
+    peaks_leftarea_final_list = []
+    peaks_rightarea_final_list = []
     
     for well in wells:
         initial_row = initial_df[initial_df['Well'] == well].iloc[0]
@@ -504,40 +558,77 @@ def create_peak_dataset(
         
         # Read peak data directly from CSV columns
         pos_init, int_init = extract_all_peaks(initial_row)
+        fwhm_init, left_init, right_init = extract_peak_shape_features(initial_row)
+
         peaks_pos_initial_list.append(pos_init)
         peaks_int_initial_list.append(int_init)
+        peaks_fwhm_initial_list.append(fwhm_init)
+        peaks_leftarea_initial_list.append(left_init)
+        peaks_rightarea_initial_list.append(right_init)
         
         if final_row is not None:
             pos_fin, int_fin = extract_all_peaks(final_row)
+            fwhm_fin, left_fin, right_fin = extract_peak_shape_features(final_row)
         else:
             pos_fin = np.zeros(5)
             int_fin = np.zeros(5)
+            fwhm_fin = np.zeros(5)
+            left_fin = np.zeros(5)
+            right_fin = np.zeros(5)
+
         peaks_pos_final_list.append(pos_fin)
         peaks_int_final_list.append(int_fin)
+        peaks_fwhm_final_list.append(fwhm_fin)
+        peaks_leftarea_final_list.append(left_fin)
+        peaks_rightarea_final_list.append(right_fin)
     
     # Convert to arrays
     peaks_pos_initial = np.array(peaks_pos_initial_list)
     peaks_int_initial = np.array(peaks_int_initial_list)
+    peaks_fwhm_initial = np.array(peaks_fwhm_initial_list)
+    peaks_leftarea_initial = np.array(peaks_leftarea_initial_list)
+    peaks_rightarea_initial = np.array(peaks_rightarea_initial_list)
+
     peaks_pos_final = np.array(peaks_pos_final_list)
     peaks_int_final = np.array(peaks_int_final_list)
+    peaks_fwhm_final = np.array(peaks_fwhm_final_list)
+    peaks_leftarea_final = np.array(peaks_leftarea_final_list)
+    peaks_rightarea_final = np.array(peaks_rightarea_final_list)
     
     # Replace NaN with 0
-    peaks_pos_initial[np.isnan(peaks_pos_initial)] = 0
-    peaks_int_initial[np.isnan(peaks_int_initial)] = 0
-    peaks_pos_final[np.isnan(peaks_pos_final)] = 0
-    peaks_int_final[np.isnan(peaks_int_final)] = 0
+    for arr in [
+        peaks_pos_initial,
+        peaks_int_initial,
+        peaks_fwhm_initial,
+        peaks_leftarea_initial,
+        peaks_rightarea_initial,
+        peaks_pos_final,
+        peaks_int_final,
+        peaks_fwhm_final,
+        peaks_leftarea_final,
+        peaks_rightarea_final,
+    ]:
+        arr[np.isnan(arr)] = 0
     
-    # Reduce to max peak (matching notebook workflow)
+    # Reduce to a single dominant peak per composition (matching notebook workflow)
     reduced_peaks_pos_initial = reduce_to_max_peak(peaks_pos_initial)
     reduced_peaks_pos_final = reduce_to_max_peak(peaks_pos_final)
     reduced_peaks_int_initial = reduce_to_max_peak(peaks_int_initial)
     reduced_peaks_int_final = reduce_to_max_peak(peaks_int_final)
+
+    reduced_fwhm_initial = reduce_to_max_peak(peaks_fwhm_initial)
+    reduced_leftarea_initial = reduce_to_max_peak(peaks_leftarea_initial)
+    reduced_rightarea_initial = reduce_to_max_peak(peaks_rightarea_initial)
     
     # Extract max peak values (matching notebook: np.max(..., axis=1))
     peak_positions_int = np.max(reduced_peaks_pos_initial, axis=1)
     peak_positions_fin = np.max(reduced_peaks_pos_final, axis=1)
     peak_intensities_int = np.max(reduced_peaks_int_initial, axis=1)
     peak_intensities_fin = np.max(reduced_peaks_int_final, axis=1)
+
+    peak_fwhm_int = np.max(reduced_fwhm_initial, axis=1)
+    left_area_int = np.max(reduced_leftarea_initial, axis=1)
+    right_area_int = np.max(reduced_rightarea_initial, axis=1)
     
     # Create dataframe
     peak_data = []
@@ -547,6 +638,10 @@ def create_peak_dataset(
             'final_peak_positions': peak_positions_fin[idx] if peak_positions_fin[idx] > 0 else 0.0,
             'initial_peak_intensities': peak_intensities_int[idx] if peak_intensities_int[idx] > 0 else 0.0,
             'final_peak_intensities': peak_intensities_fin[idx] if peak_intensities_fin[idx] > 0 else 0.0,
+            # Shape features for instability / quality scoring
+            'initial_peak_fwhm': peak_fwhm_int[idx] if peak_fwhm_int[idx] > 0 else 0.0,
+            'initial_left_area': left_area_int[idx] if left_area_int[idx] > 0 else 0.0,
+            'initial_right_area': right_area_int[idx] if right_area_int[idx] > 0 else 0.0,
             'composition_number': composition_number_start + idx,
             'iteration': iteration
         })
