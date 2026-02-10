@@ -100,10 +100,12 @@ def instability_score(
 
 def instability_score_simple(
     df: pd.DataFrame,
+    compositions_with_multiple_peaks: np.ndarray,
     target_wavelength: float,
     wavelength_tolerance: float,
     degradation_weight: float,
-    position_weight: float
+    position_weight: float,
+    multiple_peak_penalty: float,
 ) -> np.ndarray:
     """
     Simplified score that combines:
@@ -120,7 +122,13 @@ def instability_score_simple(
     df : pd.DataFrame
         DataFrame with columns:
         initial_peak_positions, final_peak_positions,
-        initial_peak_intensities, final_peak_intensities
+        initial_peak_intensities, final_peak_intensities,
+        composition_number, iteration, and (optionally)
+        initial_peak_fwhm, initial_left_area, initial_right_area.
+    compositions_with_multiple_peaks : np.ndarray
+        Structured or simple array identifying compositions that
+        show multiple peaks. If structured, it must contain fields
+        ('composition_number', 'iteration').
     target_wavelength : float
         Target wavelength (e.g. 460 for pure blue)
     wavelength_tolerance : float
@@ -129,6 +137,8 @@ def instability_score_simple(
         Weight for the *intensity* term (higher = care more about brightness)
     position_weight : float
         Weight for the wavelength term (higher = care more about color / λ)
+    multiple_peak_penalty : float
+        Additional penalty added when a composition has multiple peaks.
         
     Returns
     -------
@@ -155,6 +165,19 @@ def instability_score_simple(
     else:
         fwhm_min, fwhm_max = 0.0, 1.0
     
+    # Create a lookup set for multiple‑peak compositions
+    multiple_peaks_set = set()
+    if compositions_with_multiple_peaks is not None and len(compositions_with_multiple_peaks) > 0:
+        if getattr(compositions_with_multiple_peaks, "dtype", None) is not None and compositions_with_multiple_peaks.dtype.names:
+            # Structured array: expect fields 'composition_number' and 'iteration'
+            multiple_peaks_set = set(
+                (int(row["composition_number"]), int(row["iteration"]))
+                for row in compositions_with_multiple_peaks
+            )
+        else:
+            # Simple list/array of indices – assume iteration 0
+            multiple_peaks_set = set((int(comp), 0) for comp in compositions_with_multiple_peaks)
+
     for _, row in df.iterrows():
         peak_positions_int = row["initial_peak_positions"]
         peak_positions_fin = row["final_peak_positions"]
@@ -218,6 +241,11 @@ def instability_score_simple(
             + w_width * width_penalty
             + w_asym * asym_penalty
         )
+        # Add multiple‑peak penalty if this composition is in the set
+        comp_key = (int(row.get("composition_number", -1)), int(row.get("iteration", 0)))
+        if comp_key in multiple_peaks_set:
+            total_score += multiple_peak_penalty
+
         total_score = min(total_score, max_score)
         stb_scores.append(total_score)
     

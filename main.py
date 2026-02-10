@@ -353,13 +353,16 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
     # Calculate instability scores
     print("Calculating instability scores...")
     if peak_data is not None:
-        # 1. Compute per‑measured‑point quality score from peak features
+        # 1. Compute per‑measured‑point quality score from peak features,
+        #    including multiple‑peak penalty.
         y_tune_score = instability_score_simple(
             peak_data,
+            multiple_peaks,
             target_wavelength=config.TARGET_WAVELENGTH,
             wavelength_tolerance=config.WAVELENGTH_TOLERANCE,
             degradation_weight=config.DEGRADATION_WEIGHT,
             position_weight=config.POSITION_WEIGHT,
+            multiple_peak_penalty=config.MULTIPLE_PEAK_PENALTY,
         )
         # Normalize to [0, 1]; lower = better
         y_tune_score = (y_tune_score - np.min(y_tune_score)) / (
