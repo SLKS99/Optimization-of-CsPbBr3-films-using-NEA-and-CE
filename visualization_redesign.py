@@ -95,26 +95,27 @@ def create_enhanced_visualizations(results, output_dir):
     
     # ========== ROW 1: 3D Visualizations & Key Metrics ==========
     
-    # Plot 1: 3D Surface - Predicted Intensity
+    # Plot 1: 3D Surface - Predicted Wavelength Position
     ax1 = fig1.add_subplot(gs1[0, 0:2], projection='3d')
-    plot_3d_surface(ax1, Cs, NEA, CE, y_pred_arr, 'Cs', 'NEA', 'Intensity',
-                    'Predicted Intensity Landscape', 'viridis')
+    plot_3d_surface(ax1, Cs, NEA, CE, y_pred_arr, 'Cs', 'NEA', 'Wavelength (nm)',
+                    'Predicted Peak Wavelength Landscape', 'viridis')
     
     # Plot 2: 3D Surface - Acquisition Function  
     ax2 = fig1.add_subplot(gs1[0, 2:4], projection='3d')
     plot_3d_surface(ax2, Cs, NEA, CE, acq_tune_arr, 'Cs', 'NEA', 'Acquisition',
                     'Acquisition Function Landscape', 'plasma')
     
-    # Plot 3: Pareto Front (Decision Support)
+    # Plot 3: Pareto Front (Decision Support) - colored by wavelength
     ax3 = fig1.add_subplot(gs1[0, 4])
-    plot_pareto_front(ax3, stability_score, low_uncertainty_score, y_pred_arr, combined_score)
+    plot_pareto_front(ax3, stability_score, low_uncertainty_score, y_pred_arr, combined_score,
+                     color_label='Wavelength (nm)')
     
     # ========== ROW 2: Critical 2D Projections ==========
     
     # Plot 4: NEA vs CE - Predictions (Most Important)
     ax4 = fig1.add_subplot(gs1[1, 0])
     plot_2d_heatmap(ax4, NEA, CE, y_pred_arr, 'NEA Conc.', 'CE Conc.',
-                    'Predicted Intensity\n(NEA vs CE)', 'viridis',
+                    'Predicted Wavelength (nm)\n(NEA vs CE)', 'viridis',
                     X_next_batch_int_acq[:, [1, 2]] if len(X_next_batch_int_acq) > 0 else None)
     
     # Plot 5: NEA vs CE - Acquisition
@@ -126,43 +127,43 @@ def create_enhanced_visualizations(results, output_dir):
     # Plot 6: Cs vs NEA - Predictions
     ax6 = fig1.add_subplot(gs1[1, 2])
     plot_2d_heatmap(ax6, Cs, NEA, y_pred_arr, 'Cs Conc.', 'NEA Conc.',
-                    'Predicted Intensity\n(Cs vs NEA)', 'viridis',
+                    'Predicted Wavelength (nm)\n(Cs vs NEA)', 'viridis',
                     X_next_batch_int_acq[:, [0, 1]] if len(X_next_batch_int_acq) > 0 else None)
     
     # Plot 7: Cs vs CE - Predictions
     ax7 = fig1.add_subplot(gs1[1, 3])
     plot_2d_heatmap(ax7, Cs, CE, y_pred_arr, 'Cs Conc.', 'CE Conc.',
-                    'Predicted Intensity\n(Cs vs CE)', 'viridis',
+                    'Predicted Wavelength (nm)\n(Cs vs CE)', 'viridis',
                     X_next_batch_int_acq[:, [0, 2]] if len(X_next_batch_int_acq) > 0 else None)
     
-    # Plot 8: Uncertainty Map
+    # Plot 8: Uncertainty Map (Wavelength prediction uncertainty)
     ax8 = fig1.add_subplot(gs1[1, 4])
     plot_2d_heatmap(ax8, NEA, CE, y_std_arr, 'NEA Conc.', 'CE Conc.',
-                    'Model Uncertainty\n(NEA vs CE)', 'Reds')
+                    'Wavelength Uncertainty (nm)\n(NEA vs CE)', 'Reds')
     
     # ========== ROW 3: Analysis & Insights ==========
     
-    # Plot 9: Component Effects
+    # Plot 9: Component Effects (on wavelength)
     ax9 = fig1.add_subplot(gs1[2, 0])
-    plot_component_effects(ax9, Cs, NEA, CE, y_pred_arr)
+    plot_component_effects(ax9, Cs, NEA, CE, y_pred_arr, ylabel='Mean Wavelength (nm)')
     
     # Plot 10: Acquisition Distribution
     ax10 = fig1.add_subplot(gs1[2, 1])
     plot_acquisition_histogram(ax10, acq_tune_arr)
     
-    # Plot 11: Prediction Quality Map
+    # Plot 11: Prediction Quality Map (Wavelength vs uncertainty)
     ax11 = fig1.add_subplot(gs1[2, 2])
-    plot_prediction_quality(ax11, y_pred_arr, y_std_arr, combined_score)
+    plot_prediction_quality(ax11, y_pred_arr, y_std_arr, combined_score, target_label='Wavelength (nm)')
     
     # Plot 12: Top Recommendations Table
     ax12 = fig1.add_subplot(gs1[2, 3])
     plot_recommendations_table(ax12, X_next_batch_int_acq, Cs, NEA, CE, 
-                              y_pred_arr, acq_tune_arr)
+                              y_pred_arr, acq_tune_arr, value_label='Wavelength (nm)')
     
     # Plot 13: Summary Statistics
     ax13 = fig1.add_subplot(gs1[2, 4])
     plot_summary_stats(ax13, Cs, NEA, CE, y_pred_arr, y_std_arr, acq_tune_arr,
-                      combined_score, X_next_batch_int_acq)
+                      combined_score, X_next_batch_int_acq, value_label='Wavelength')
     
     plt.suptitle('Dual GP Optimization: Executive Dashboard', 
                 fontsize=18, fontweight='bold', y=0.98)
@@ -201,7 +202,7 @@ def create_enhanced_visualizations(results, output_dir):
                    ha='center', va='center', fontsize=10, transform=ax.transAxes,
                    bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.5))
     
-    plt.suptitle(f'Predicted Intensity: CE Concentration Slices ({config.PRECURSOR1} vs {config.PRECURSOR2})',
+    plt.suptitle(f'Predicted Wavelength: CE Concentration Slices ({config.PRECURSOR1} vs {config.PRECURSOR2})',
                 fontsize=16, fontweight='bold', y=0.98)
     
     slices_file = os.path.join(output_dir, 'ce_slice_analysis.png')
@@ -218,7 +219,7 @@ def create_enhanced_visualizations(results, output_dir):
     # Comparison plots for different metrics
     ax_comp1 = fig3.add_subplot(gs3[0, 0])
     plot_2d_heatmap(ax_comp1, NEA, CE, y_pred_arr, 'NEA', 'CE',
-                    'Predicted Intensity', 'viridis')
+                    'Predicted Wavelength (nm)', 'viridis')
     
     ax_comp2 = fig3.add_subplot(gs3[0, 1])
     plot_2d_heatmap(ax_comp2, NEA, CE, acq_tune_arr, 'NEA', 'CE',
@@ -230,7 +231,7 @@ def create_enhanced_visualizations(results, output_dir):
     
     ax_comp4 = fig3.add_subplot(gs3[1, 0])
     plot_2d_heatmap(ax_comp4, Cs, NEA, y_pred_arr, 'Cs', 'NEA',
-                    'Predicted Intensity', 'viridis')
+                    'Predicted Wavelength (nm)', 'viridis')
     
     ax_comp5 = fig3.add_subplot(gs3[1, 1])
     plot_2d_heatmap(ax_comp5, Cs, NEA, acq_tune_arr, 'Cs', 'NEA',
@@ -419,13 +420,13 @@ def plot_2d_heatmap(ax, x, y, z_vals, xlabel, ylabel, title, cmap,
     ax.grid(True, alpha=0.2, linestyle='--')
 
 
-def plot_pareto_front(ax, stability, uncertainty, intensity, combined):
+def plot_pareto_front(ax, stability, uncertainty, values, combined, color_label='Wavelength (nm)'):
     """Plot Pareto frontier for multi-objective optimization"""
     top_n = min(150, len(combined))
     top_indices = np.argsort(combined)[-top_n:]
     
     scatter = ax.scatter(stability[top_indices], uncertainty[top_indices],
-                        c=intensity[top_indices], s=60, alpha=0.7, cmap='RdYlGn',
+                        c=values[top_indices], s=60, alpha=0.7, cmap='RdYlGn',
                         edgecolors='gray', linewidths=0.5)
     
     # Find Pareto optimal points
@@ -449,7 +450,7 @@ def plot_pareto_front(ax, stability, uncertainty, intensity, combined):
     ax.set_xlabel('Stability', fontsize=10)
     ax.set_ylabel('Confidence\n(Low Uncertainty)', fontsize=10)
     ax.set_title('Pareto Front:\nStability vs Confidence', fontsize=11, fontweight='bold', pad=8)
-    cbar = plt.colorbar(scatter, ax=ax, label='Intensity', shrink=0.7, pad=0.02)
+    cbar = plt.colorbar(scatter, ax=ax, label=color_label, shrink=0.7, pad=0.02)
     cbar.ax.tick_params(labelsize=8)
     if len(pareto_indices) > 0:
         ax.legend(fontsize=8, loc='lower left', framealpha=0.9)
@@ -458,8 +459,8 @@ def plot_pareto_front(ax, stability, uncertainty, intensity, combined):
     ax.set_ylim([uncertainty[top_indices].min() - 0.05, 1.05])
 
 
-def plot_component_effects(ax, cs, nea, ce, intensity):
-    """Plot marginal effect of each component"""
+def plot_component_effects(ax, cs, nea, ce, values, ylabel='Mean Wavelength (nm)'):
+    """Plot marginal effect of each component on wavelength"""
     cs_bins = np.linspace(cs.min(), cs.max(), 8)
     nea_bins = np.linspace(nea.min(), nea.max(), 12)
     ce_bins = np.linspace(ce.min(), ce.max(), 8)
@@ -468,11 +469,11 @@ def plot_component_effects(ax, cs, nea, ce, intensity):
     tol_nea = (nea.max() - nea.min()) / 20
     tol_ce = (ce.max() - ce.min()) / 12
     
-    cs_means = [intensity[np.abs(cs - c) < tol_cs].mean() 
+    cs_means = [values[np.abs(cs - c) < tol_cs].mean() 
                 if np.sum(np.abs(cs - c) < tol_cs) > 0 else np.nan for c in cs_bins]
-    nea_means = [intensity[np.abs(nea - n) < tol_nea].mean() 
+    nea_means = [values[np.abs(nea - n) < tol_nea].mean() 
                  if np.sum(np.abs(nea - n) < tol_nea) > 0 else np.nan for n in nea_bins]
-    ce_means = [intensity[np.abs(ce - e) < tol_ce].mean() 
+    ce_means = [values[np.abs(ce - e) < tol_ce].mean() 
                 if np.sum(np.abs(ce - e) < tol_ce) > 0 else np.nan for e in ce_bins]
     
     ax.plot(cs_bins, cs_means, 'o-', label='Cs', linewidth=2.5, markersize=8, color='#2E86DE')
@@ -480,7 +481,7 @@ def plot_component_effects(ax, cs, nea, ce, intensity):
     ax.plot(ce_bins, ce_means, '^-', label='CE', linewidth=2.5, markersize=7, color='#26DE81')
     
     ax.set_xlabel('Concentration', fontsize=10)
-    ax.set_ylabel('Mean Intensity', fontsize=10)
+    ax.set_ylabel(ylabel, fontsize=10)
     ax.set_title('Marginal Component Effects', fontsize=11, fontweight='bold', pad=8)
     ax.legend(fontsize=10, loc='best', framealpha=0.9)
     ax.grid(True, alpha=0.3)
@@ -504,12 +505,12 @@ def plot_acquisition_histogram(ax, acq_values):
     ax.grid(True, alpha=0.3, axis='y')
 
 
-def plot_prediction_quality(ax, intensity, uncertainty, combined):
+def plot_prediction_quality(ax, values, uncertainty, combined, target_label='Wavelength (nm)'):
     """Scatter plot of prediction quality"""
-    scatter = ax.scatter(intensity, uncertainty, c=combined, s=40, alpha=0.65,
+    scatter = ax.scatter(values, uncertainty, c=combined, s=40, alpha=0.65,
                         cmap='viridis', edgecolors='none')
     
-    ax.set_xlabel('Predicted Intensity', fontsize=10)
+    ax.set_xlabel(f'Predicted {target_label}', fontsize=10)
     ax.set_ylabel('Prediction Uncertainty', fontsize=10)
     ax.set_title('Prediction Quality Map', fontsize=11, fontweight='bold', pad=8)
     cbar = plt.colorbar(scatter, ax=ax, label='Combined Score', shrink=0.7, pad=0.02)
@@ -517,7 +518,8 @@ def plot_prediction_quality(ax, intensity, uncertainty, combined):
     ax.grid(True, alpha=0.3)
 
 
-def plot_recommendations_table(ax, next_batch, cs, nea, ce, intensity, acquisition):
+def plot_recommendations_table(ax, next_batch, cs, nea, ce, values, acquisition,
+                               value_label='Wavelength (nm)'):
     """Create a table of top recommended experiments"""
     ax.axis('off')
     
@@ -531,18 +533,19 @@ def plot_recommendations_table(ax, next_batch, cs, nea, ce, intensity, acquisiti
     for idx, batch_comp in enumerate(next_batch[:min(10, len(next_batch))]):
         dist = np.sqrt(np.sum((np.column_stack([cs, nea, ce]) - batch_comp)**2, axis=1))
         grid_idx = np.argmin(dist)
-        
+        val = values[grid_idx]
+        val_str = f"{val:.1f}" if val >= 100 else f"{val:.2f}"
         table_data.append([
             f"{idx+1}",
             f"{batch_comp[0]:.3f}",
             f"{batch_comp[1]:.3f}",
             f"{batch_comp[2]:.3f}",
-            f"{intensity[grid_idx]:.0f}",
+            val_str,
             f"{acquisition[grid_idx]:.3f}"
         ])
     
     table = ax.table(cellText=table_data,
-                    colLabels=['#', 'Cs', 'NEA', 'CE', 'Intensity', 'Acq.'],
+                    colLabels=['#', 'Cs', 'NEA', 'CE', 'Wl (nm)', 'Acq.'],
                     cellLoc='center', loc='center',
                     colWidths=[0.08, 0.18, 0.18, 0.18, 0.18, 0.18])
     
@@ -563,8 +566,8 @@ def plot_recommendations_table(ax, next_batch, cs, nea, ce, intensity, acquisiti
     ax.set_title('Top 10 Recommended Experiments', fontsize=11, fontweight='bold', pad=25)
 
 
-def plot_summary_stats(ax, cs, nea, ce, intensity, uncertainty, acquisition, 
-                      combined, next_batch):
+def plot_summary_stats(ax, cs, nea, ce, values, uncertainty, acquisition, 
+                      combined, next_batch, value_label='Wavelength'):
     """Create a summary statistics panel"""
     ax.axis('off')
     
@@ -580,16 +583,17 @@ Search Space Configuration:
   {config.PRECURSOR2}:  {config.NEA_MIN:.2f} → {config.NEA_MAX:.2f}
   {config.PRECURSOR3}:   {config.CE_MIN:.2f} → {config.CE_MAX:.2f}
   PbBr: {config.PBBR_FIXED:.2f} (fixed)
+  Target: {config.TARGET_WAVELENGTH} nm
 
 Grid & Recommendations:
-  Total Grid Points:  {len(intensity):,}
+  Total Grid Points:  {len(values):,}
   Next Batch Size:    {len(next_batch)}
 
 Performance Metrics:
-  Max Intensity:      {np.max(intensity):.1f}
-  Min Uncertainty:    {np.min(uncertainty):.5f}
+  Predicted {value_label} Range: {np.min(values):.1f} - {np.max(values):.1f} nm
+  Min Uncertainty:    {np.min(uncertainty):.4f} nm
   Max Acquisition:    {np.max(acquisition):.4f}
-  Mean Intensity:     {np.mean(intensity):.1f}
+  Mean {value_label}:     {np.mean(values):.1f} nm
 
 Best Composition Found:
   Cs:  {cs[best_idx]:.4f}

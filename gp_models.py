@@ -253,6 +253,63 @@ def calculate_acquisition(
     return acq, y_pred, y_sampled, y_std
 
 
+def calculate_wavelength_acquisition(
+    gp_model: gpax.viGP,
+    X_search: jnp.ndarray,
+    target_wavelength: float,
+    beta: float = 5,
+    jitter: float = 1e-4
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """
+    Calculate acquisition for wavelength (peak position) optimization.
+    Maximizes: -|mean - target| + beta * std (closeness to target + exploration).
+    
+    Parameters:
+    -----------
+    gp_model : gpax.viGP
+        Trained GP model (predicting wavelength in nm)
+    X_search : jnp.ndarray
+        Search grid points
+    target_wavelength : float
+        Target peak wavelength (nm)
+    beta : float
+        Exploration weight (higher = more exploration)
+    jitter : float
+        Jitter value
+        
+    Returns:
+    --------
+    Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]
+        Acquisition values, predictions (wavelength nm), std
+    """
+    rng_key2, _ = gpax.utils.get_keys()
+    
+    try:
+        y_pred, y_sampled = gp_model.predict_in_batches(
+            rng_key2, X_search, noiseless=False, jitter=jitter
+        )
+    except UnboundLocalError:
+        y_pred, y_var = gp_model.predict(
+            rng_key2, X_search, noiseless=False, jitter=jitter
+        )
+        y_sampled = y_pred
+    
+    y_sampled_array = np.array(y_sampled)
+    if y_sampled_array.ndim > 1:
+        y_std = np.std(y_sampled_array, axis=0)
+    else:
+        y_pred_np = np.array(y_pred)
+        pred_range = float(np.max(y_pred_np) - np.min(y_pred_np)) if y_pred_np.size > 0 else 10.0
+        y_std = np.ones_like(y_pred_np) * (pred_range * 0.05)
+    
+    y_pred_np = np.array(y_pred)
+    deviation = np.abs(y_pred_np - target_wavelength)
+    acq = -deviation + beta * np.array(y_std)
+    acq = jnp.array(acq)
+    
+    return acq, y_pred, y_std
+
+
 def tune_gp(
     X_measured: np.ndarray,
     y_tune_score: np.ndarray,

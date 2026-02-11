@@ -35,7 +35,7 @@ from gp_models import (
     train_intensity_gp,
     create_search_grid,
     calculate_acquisition,
-    tune_gp
+    calculate_wavelength_acquisition,
 )
 from instability_scoring import instability_score_simple
 from iteration_manager import (
@@ -268,9 +268,13 @@ def combine_iteration_datasets():
                     f"Found only {len(intensity_cols)}: {intensity_cols}"
                 )
     
-    # Clean old files
+    # Clean old files (keep combined outputs needed for peak-shape visualization)
     updated_dir = os.path.join(base_dir, config.UPDATED_DATASETS_DIR)
-    delete_old_files(updated_dir, config.DELETE_OLD_FILES_AFTER_DAYS)
+    delete_old_files(
+        updated_dir,
+        config.DELETE_OLD_FILES_AFTER_DAYS,
+        exclude_files=('combined_peak_data_full.csv', 'intensity_combined_full.csv')
+    )
     
     return df_intensity, multiple_peaks, peak_data
 
@@ -317,11 +321,9 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
     ])
     
     # Normalize using component-specific ranges
-    # Create a closure to capture ranges
     def norm_func(x):
         return normalize_data(x, ranges=ranges)
     X_int_norm = norm_func(X_int)
-    y_train_normalized = y_int
     
     # Create search grid with independent ranges
     print("Creating search grid...")
@@ -337,18 +339,58 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
         ranges=ranges
     )
     
-    # Train intensity GP
+    # Train WAVELENGTH GP (primary objective - peak position)
+    print("Training wavelength-position GP model...")
+    if peak_data is not None:
+        y_wl = peak_data['final_peak_positions'].values
+        valid_wl = y_wl > 0
+    else:
+        y_wl = None
+        valid_wl = np.zeros(len(X_int), dtype=bool)
+    
+    if peak_data is not None and np.sum(valid_wl) >= 3:
+        X_wl_norm = X_int_norm[valid_wl]
+        y_wl_train = y_wl[valid_wl]
+        gp_model_wl = train_intensity_gp(
+            X_wl_norm, y_wl_train,
+            kernel_prior_func, noise_prior_dist
+        )
+        acq_wl, y_pred_wl, y_std_wl = calculate_wavelength_acquisition(
+            gp_model_wl, Xnew,
+            target_wavelength=config.TARGET_WAVELENGTH,
+            beta=config.UCB_BETA
+        )
+        y_pred_wl = np.array(y_pred_wl)
+        y_std_wl = np.array(y_std_wl)
+    else:
+        gp_model_wl = None
+        acq_wl = jnp.zeros(len(Xnew))
+        y_pred_wl = np.full(len(Xnew), config.TARGET_WAVELENGTH)
+        y_std_wl = np.ones(len(Xnew)) * 10.0
+    
+    # Train INTENSITY GP (secondary objective)
     print("Training intensity GP model...")
     gp_model = train_intensity_gp(
-        X_int_norm, y_train_normalized,
+        X_int_norm, y_int,
         kernel_prior_func, noise_prior_dist
     )
-    
-    # Calculate acquisition
-    print("Calculating acquisition function...")
-    acq, y_pred, y_sampled, y_std = calculate_acquisition(
+    acq_int, y_pred_int, y_sampled_int, y_std_int = calculate_acquisition(
         gp_model, Xnew, beta=config.UCB_BETA
     )
+    
+    # Combined acquisition: wavelength weighs more than intensity
+    acq_wl_np = np.array(acq_wl)
+    acq_int_np = np.array(acq_int)
+    acq_wl_norm = (acq_wl_np - acq_wl_np.min()) / (acq_wl_np.max() - acq_wl_np.min() + 1e-10)
+    acq_int_norm = (acq_int_np - acq_int_np.min()) / (acq_int_np.max() - acq_int_np.min() + 1e-10)
+    acq = jnp.array(
+        config.WAVELENGTH_WEIGHT * acq_wl_norm + config.INTENSITY_WEIGHT * acq_int_norm
+    )
+    
+    # Primary output: wavelength position (for display)
+    y_pred = y_pred_wl
+    y_std = y_std_wl
+    y_pred_intensity = np.array(y_pred_int)
     
     # Calculate instability scores
     print("Calculating instability scores...")
@@ -396,7 +438,7 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
             neighbour_quality = 1.0 - neighbour_scores
             quality_grid = np.sum(weights_norm * neighbour_quality, axis=1)
 
-        # 3. Use this quality field to modulate the acquisition function
+        # 3. Use this quality field to modulate the COMBINED acquisition function
         #    (high quality → keep acquisition, low quality → suppress).
         adjust_tune_score = jnp.array(quality_grid)
         acq_tune = acq * adjust_tune_score
@@ -417,8 +459,10 @@ def run_dual_gp_analysis(df_intensity, peak_data, multiple_peaks):
     
     return {
         'gp_model': gp_model,
+        'gp_model_wl': gp_model_wl,
         'Xnew': Xnew,
         'y_pred': y_pred,
+        'y_pred_intensity': y_pred_intensity,
         'y_std': y_std,
         'acq': acq,
         'acq_tune': acq_tune,
@@ -463,7 +507,7 @@ def unnormalize_data_with_ranges(values, ranges, step_size=0.01):
     return unnormalized
 
 
-def save_next_batch_results(X_next_batch_int_acq, output_dir):
+def save_next_batch_results(X_next_batch_int_acq, output_dir, results=None):
     """Save next batch predictions to CSV file."""
     print("\n=== Saving Results ===")
     
@@ -496,15 +540,34 @@ def save_next_batch_results(X_next_batch_int_acq, output_dir):
     CE_rounded = np.round(CE, 2)
     PbBr_rounded = np.round(PbBr, 2)
     
+    # Look up predicted wavelength and intensity for each batch composition
+    wavelength_col = []
+    intensity_col = []
+    if results is not None:
+        grid_stack = np.column_stack([results['Xnew'][:, 0], results['Xnew'][:, 1], results['Xnew'][:, 2]])
+        y_pred_wl = results['y_pred']
+        y_pred_int = results.get('y_pred_intensity')
+        for batch_comp in X_next_batch_int_acq:
+            bc = np.array(batch_comp)
+            dist = np.sqrt(np.sum((grid_stack - bc) ** 2, axis=1))
+            grid_idx = np.argmin(dist)
+            wavelength_col.append(round(float(y_pred_wl[grid_idx]), 1))
+            intensity_col.append(round(float(y_pred_int[grid_idx]), 1) if y_pred_int is not None else np.nan)
+    
     # Create dataframe
     wells = [f"{chr(65+i)}{j+1}" for i in range(8) for j in range(12)]
-    df = pd.DataFrame({
+    df_dict = {
         'Well': wells[:len(Cs_rounded)],
         'PbBr': PbBr_rounded,  # Fixed component
         config.PRECURSOR1: Cs_rounded,  # Cs
         config.PRECURSOR2: NEA_rounded,  # NEA
         config.PRECURSOR3: CE_rounded   # CE
-    })
+    }
+    if wavelength_col:
+        df_dict['Peak Wavelength (nm)'] = wavelength_col
+    if intensity_col:
+        df_dict['Intensity'] = intensity_col
+    df = pd.DataFrame(df_dict)
     
     # Save to CSV with 2 decimal places formatting
     output_file = os.path.join(output_dir, 'next_batch_compositions.csv')
@@ -833,7 +896,7 @@ def main():
     results_dir = os.path.join(base_dir, config.RESULTS_DIR)
     os.makedirs(results_dir, exist_ok=True)
     
-    next_batch_df = save_next_batch_results(results['X_next_batch_int_acq'], results_dir)
+    next_batch_df = save_next_batch_results(results['X_next_batch_int_acq'], results_dir, results=results)
     
     # Create visualizations - NEW ENHANCED VERSION
     print("\n=== Step 4: Generating Visualizations ===")

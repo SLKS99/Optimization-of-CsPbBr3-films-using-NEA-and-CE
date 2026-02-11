@@ -224,7 +224,7 @@ def update_npy_file(
     return updated_path
 
 
-def delete_old_files(directory: str, age_days: int):
+def delete_old_files(directory: str, age_days: int, exclude_files: tuple = None):
     """
     Delete files older than specified age.
     
@@ -234,12 +234,17 @@ def delete_old_files(directory: str, age_days: int):
         Directory to clean
     age_days : int
         Age threshold in days
+    exclude_files : tuple, optional
+        Filenames to never delete (e.g. current combined outputs needed by visualization)
     """
     if not os.path.exists(directory):
         return
     
+    exclude = exclude_files or ()
     current_time = time.time()
     for filename in os.listdir(directory):
+        if filename in exclude:
+            continue
         file_path = os.path.join(directory, filename)
         if os.path.isfile(file_path):
             file_stat = os.stat(file_path)

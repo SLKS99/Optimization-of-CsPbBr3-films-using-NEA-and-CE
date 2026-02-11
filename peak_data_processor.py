@@ -10,6 +10,11 @@ import numpy as np
 import pandas as pd
 from typing import List, Tuple, Optional, Dict
 
+try:
+    import config
+except ImportError:
+    config = None
+
 
 def extract_iteration_number(filename: str) -> Optional[int]:
     """
@@ -819,6 +824,33 @@ def process_peak_data_file(
     
     # Extract initial and final reads
     initial_df, final_df = extract_initial_final_peaks(peak_df, initial_read, final_read)
+    
+    # Filter out wells with CE > CE_MAX (restrict CE to 0 to CE_MAX range)
+    if config is not None and hasattr(config, 'CE_MAX'):
+        ce_col = composition_cols[2]
+        matching_idx = None
+        for idx in composition_df.index:
+            if str(idx).strip() == str(ce_col).strip():
+                matching_idx = idx
+                break
+        if matching_idx is None:
+            matching_idx = ce_col
+        wells_to_keep = []
+        comp_cols_stripped = {str(c).strip(): c for c in composition_df.columns}
+        for well in initial_df['Well'].unique():
+            well_key = str(well).strip()
+            comp_col = comp_cols_stripped.get(well_key) or (well if well in composition_df.columns else None)
+            if comp_col is not None and matching_idx in composition_df.index:
+                ce_val = composition_df.loc[matching_idx, comp_col]
+                if pd.notna(ce_val) and float(ce_val) <= config.CE_MAX:
+                    wells_to_keep.append(well)
+        wells_to_keep = set(wells_to_keep)
+        n_before = len(initial_df)
+        initial_df = initial_df[initial_df['Well'].isin(wells_to_keep)].copy()
+        final_df = final_df[final_df['Well'].isin(wells_to_keep)].copy()
+        n_removed = n_before - len(initial_df)
+        if n_removed > 0:
+            print(f"  Filtered out {n_removed} well(s) with CE > {config.CE_MAX} M")
     
     # Create datasets
     df_intensity = create_intensity_dataset(initial_df, final_df, composition_df, composition_cols)
