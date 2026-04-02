@@ -1,0 +1,106 @@
+=== ROBOT RUN PLAN & PREP INSTRUCTIONS ===
+
+STEP 1: SOLUTION PREPARATION
+----------------------------
+Well labels match data/next_batch_solution_mix.csv (one prep vial per row).
+
+[A1]  Robot solution/vial slot 1
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.160, crown ether=0.010
+
+[A2]  Robot solution/vial slot 1
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.160, crown ether=0.010
+
+[A3]  Robot solution/vial slot 2
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.170, crown ether=0.010
+
+[A4]  Robot solution/vial slot 2
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.170, crown ether=0.010
+
+[A5]  Robot solution/vial slot 2
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.170, crown ether=0.010
+
+[A6]  Robot solution/vial slot 2
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.170, crown ether=0.010
+
+[A7]  Robot solution/vial slot 3
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.150, crown ether=0.010
+
+[A8]  Robot solution/vial slot 3
+    Ink: Cs1Pb1Br3 in DMSO(1), [PbBr2]=0.15 M
+    Additives (M): CsBr=0.170, NEABr=0.150, crown ether=0.010
+
+
+STEP 2: SUBSTRATE LOADING PLAN
+------------------------------
+Substrate 1: Load ink from well A1 (robot Solution Number 1)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=2000rpm/5s, Step2=6000rpm/40s
+   -> Annealing: 145°C for 720s (12min)
+   -> Recipe: Accel=1500rpm/s, Height=12mm, Vol=80uL
+   -> Antisolvent: CB, Vol=50.0uL, Timing=25.0s
+   -> Reason: Rank Score 238.7 [Composition Dual-GP Score: 30.796]
+
+Substrate 2: Load ink from well A2 (robot Solution Number 1)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=2000rpm/10s, Step2=6000rpm/40s
+   -> Annealing: 140°C for 900s (15min)
+   -> Recipe: Accel=3000rpm/s, Height=10mm, Vol=50uL
+   -> Antisolvent: CB, Vol=100.0uL, Timing=30.0s
+   -> Reason: Rank Score 238.7 [Composition Dual-GP Score: 30.796]
+
+Substrate 3: Load ink from well A3 (robot Solution Number 2)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=1500rpm/10s, Step2=3000rpm/40s
+   -> Annealing: 145°C for 480s (8min)
+   -> Recipe: Accel=3000rpm/s, Height=10mm, Vol=40uL
+   -> Antisolvent: CB, Vol=75.0uL, Timing=30.0s
+   -> Reason: Rank Score 238.6 [Composition Dual-GP Score: 30.789]
+
+Substrate 4: Load ink from well A4 (robot Solution Number 2)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=2000rpm/15s, Step2=4500rpm/40s
+   -> Annealing: 145°C for 600s (10min)
+   -> Recipe: Accel=2500rpm/s, Height=15mm, Vol=40uL
+   -> Antisolvent: CB, Vol=75.0uL, Timing=35.0s
+   -> Reason: Rank Score 238.6 [Composition Dual-GP Score: 30.789]
+
+Substrate 5: Load ink from well A5 (robot Solution Number 2)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=1000rpm/20s, Step2=4000rpm/40s
+   -> Annealing: 145°C for 600s (10min)
+   -> Recipe: Accel=1000rpm/s, Height=12mm, Vol=70uL
+   -> Antisolvent: CB, Vol=125.0uL, Timing=40.0s
+   -> Reason: Rank Score 238.6 [Composition Dual-GP Score: 30.789]
+
+Substrate 6: Load ink from well A6 (robot Solution Number 2)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=2000rpm/5s, Step2=5500rpm/40s
+   -> Annealing: 145°C for 360s (6min)
+   -> Recipe: Accel=1000rpm/s, Height=12mm, Vol=50uL
+   -> Antisolvent: CB, Vol=100.0uL, Timing=25.0s
+   -> Reason: Rank Score 238.6 [Composition Dual-GP Score: 30.789]
+
+Substrate 7: Load ink from well A7 (robot Solution Number 3)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=1500rpm/15s, Step2=4500rpm/40s
+   -> Annealing: 140°C for 1200s (20min)
+   -> Recipe: Accel=1000rpm/s, Height=15mm, Vol=60uL
+   -> Antisolvent: CB, Vol=100.0uL, Timing=35.0s
+   -> Reason: Rank Score 238.5 [Composition Dual-GP Score: 30.761]
+
+Substrate 8: Load ink from well A8 (robot Solution Number 3)
+   -> Ink: Cs1Pb1Br3 | DMSO(1) | [PbBr2]=0.15 M
+   -> Spin (Two-Step): Step1=1500rpm/15s, Step2=5000rpm/40s
+   -> Annealing: 145°C for 360s (6min)
+   -> Recipe: Accel=3000rpm/s, Height=10mm, Vol=70uL
+   -> Antisolvent: CB, Vol=150.0uL, Timing=35.0s
+   -> Reason: Rank Score 238.5 [Composition Dual-GP Score: 30.761]
+
+==========================================

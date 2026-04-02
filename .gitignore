@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+*.pkl
+data/transition_experiments.pkl
+data/optimization_history.csv
+data/next_batch_solution_mix.csv
+external_dual_gp/

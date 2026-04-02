@@ -1,0 +1,199 @@
+data:
+  precursors: data/templates/precursors.csv
+  solvents: data/templates/solvents.csv
+  history: data/templates/experiments_log.csv
+  # Optional. For this project, the material system is fixed (CsPbBr3), so we don't need a compositions file.
+  compositions: null
+  output_directory: null
+precursor_mapping:
+  Precursor 1: FA
+  Precursor 2: FuDMA
+stoichiometry: {}
+
+# Fixed perovskite material system (no composition search here)
+fixed_material_system:
+  enabled: true
+  a_name: Cs
+  b_name: Pb
+  x_name: Br
+  x_ratio: 3.0
+solvent:
+- name: DMSO
+  ratio: 1.0
+target:
+  single_composition_mode: false
+  target_system: Cs0.76AVA0.08BDA0.16Pb1I1
+# Robot recipe YAML schema matches `microwell trial with syringe quench.yaml` (Syringe Quenching).
+# Monte Carlo fills anneal, spin steps, pipette height, ink solution #/volume, quench delay & syringe volume.
+robot_recipe:
+  annealing_station_number: 1
+  dispense_spin_blade_delay_s: 0.0
+  dispensing_rate_ml_min: 50.0
+  horizontal_quench_offset_mm: 1
+  liquid_class_index: 98
+  mixing_cycles_aspiration: 1
+  pipette_rack_number: 1
+  quench_height_mm: 10
+  solvent_station_number: 1
+  spincoater_number: 1
+  tip_type: "1000 µL"
+generation:
+  n_attempts: 5000
+  batch_size: 8
+  normalize_ratios: 50
+  iterative_mode: False
+  # Controls iterative optimization loop length in `main.py`
+  max_cycles: 10
+  min_cycles: 3
+  improvement_threshold: 0.05
+  uncertainty_threshold: 10.0
+  quality_threshold: 1500
+  exploration_rate: 0.15
+  # No process-space GP: keep this false so MC is not GP-guided.
+  use_gp_guided_sampling: false
+  # Pareto front selection relies on process-GP uncertainty; keep off.
+  use_pareto_front: false
+spin_coating:
+  two_step_enabled: true
+  first_step:
+    speed_rpm:
+    - 1000
+    - 1500
+    - 2000
+    time_s:
+    - 5
+    - 10
+    - 15
+    - 20
+    acceleration_rpm_s:
+    - 500
+    - 1000
+    - 1500
+  second_step:
+    speed_rpm:
+    - 3000
+    - 4000
+    - 4500
+    - 5000
+    - 5500
+    - 6000
+    time_s:
+    - 30
+    - 45
+    - 60
+    - 90
+    acceleration_rpm_s:
+    - 1000
+    - 1500
+    - 2000
+    - 2500
+    - 3000
+  drop_volume_ul:
+  - 40
+  - 50
+  - 60
+  - 70
+  - 80
+  dispense_height_mm:
+  - 10
+  - 12
+  - 15
+  - 18
+  - 20
+annealing:
+  temperature_c:
+  - 140
+  - 145
+  time_s:
+  - 360
+  - 480
+  - 600
+  - 720
+  - 900
+  - 1200
+concentration:
+  values_M:
+  - 0.15
+antisolvent:
+  # Fixed antisolvent workflow for this experiment family
+  use_probability: 1.0
+  allowed_names:
+  # In `data/templates/solvents.csv`, chlorobenzene is named "CB"
+  - CB
+  volume_ul:
+  - 50
+  - 75
+  - 100
+  - 125
+  - 150
+  # You said: total spin coating time = (antisolvent drop time + 20s)
+  # This config expresses the DROP TIME directly.
+  drop_time_s:
+  - 20
+
+# Separate Dual-GP that guides *composition additives* (independent concentration space)
+# Mirrors the intent of `external_dual_gp/config.py` but applies to THIS project.
+composition_dual_gp:
+  enabled: true
+  # Additive knobs (as salts/additives in solution)
+  csbr_min: 0.10
+  csbr_max: 0.18
+  neabr_min: 0.0
+  neabr_max: 0.40
+  ce_min: 0.0
+  ce_max: 0.02
+  grid_resolution: 0.01
+  ucb_beta: 5.0
+  quality_weight: 0.5
+  peak_weight: 0.5
+  use_peak_3d_if_available: true
+  # How strongly composition acquisition should influence overall ranking
+  score_boost_weight: 5.0
+  # Penalize acquisition near pending (transition) compositions
+  transition_constraint_factor: 5.0
+substrate:
+  surface_energy_mJ_m2: 45.0
+  roughness_nm: 2.0
+  material: ITO/Glass
+quality_target:
+  pl_weight: 1.0
+  pl_scale: 50.0
+  fwhm_weight: 50.0
+  fwhm_ideal_nm: 30.0
+  stability_weight: 2.0
+  peak_wavelength:
+    enabled: true
+    target_nm: 460
+    tolerance_nm: 5
+    penalty_weight: 15.0
+  process_gp:
+    # Explicitly disabled: processing is handled by Monte Carlo + Random Forest.
+    enabled: false
+  dual_gp:
+    enabled: true
+    # UCB beta used for the quality/intensity GP and the peak-target exploration term.
+    ucb_beta: 2.0
+    # Weighted combination of normalized acquisitions:
+    # combined = quality_weight * norm(acq_quality) + peak_weight * norm(acq_peak_target)
+    quality_weight: 0.5
+    peak_weight: 0.5
+    # If available, use PL_Peak_3d_nm as the (delayed) peak target signal for training the peak GP.
+    use_peak_3d_if_available: true
+composition_gp:
+  # Disable by default for a fresh experiment; enable once you have a binary library
+  # file available and want to bias FA/FuDMA sampling.
+  enabled: false
+  data_path: data/binary/11-19-25-FuFA_peak_fit_export.csv
+  fa_column: FA_Ratio
+  quality_column: Quality_Target
+  ucb_beta: 2.0
+llm_agent:
+  enabled: false
+  # Set GEMINI_API_KEY in the environment or paste a key here for local use only (do not commit secrets).
+  api_key: ''
+  min_confidence: 0.7
+  auto_apply: false
+  film_images_dir: data/film_images
+  analysis:
+    look_back_experiments: 50
+    min_pattern_confidence: 0.5

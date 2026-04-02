@@ -1,0 +1,1 @@
+Experiment_ID,Material_Composition,Solvent_Name,Concentration_M,CsBr_M,NEABr_M,CE_M,Spin_Speed_rpm,Spin_Time_s,Spin_Acceleration_rpm_s,Anneal_Temp_C,Anneal_Time_s,Dispense_Height_mm,Antisolvent_Name,Antisolvent_Volume_uL,Antisolvent_Timing_s,PL_Peak_nm,PL_Intensity,PL_FWHM_nm,PL_Peak_3d_nm,PL_Intensity_3d_nm,PL_FWHM_3d_nm

@@ -1,0 +1,12 @@
+pandas
+numpy
+pyyaml
+matplotlib
+gpax
+jax
+jaxlib
+google-genai
+Pillow
+scipy
+scikit-learn
+shap

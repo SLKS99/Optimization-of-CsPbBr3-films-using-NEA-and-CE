@@ -1,0 +1,5 @@
+Experiment_ID,Step_Order,Action,Value,Unit,Duration_s
+1,1,Deposit,50,uL,5
+1,2,Spin,3000,rpm,30
+1,3,Anneal,100,C,600
+

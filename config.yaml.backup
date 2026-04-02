@@ -1,0 +1,152 @@
+data:
+  precursors: data/templates/precursors.csv
+  solvents: data/templates/solvents.csv
+  history: data/templates/experiments_log.csv
+  compositions: binary- Compositions.csv
+  output_directory: null
+precursor_mapping:
+  Precursor 1: FA
+  Precursor 2: FuDMA
+stoichiometry:
+  FA_binary:
+    a_precursors:
+    - FA
+    - FuDMA
+    b_site:
+    - name: Pb
+      ratio: 1.0
+    x_site:
+    - name: I
+      ratio: 2.0
+  FuDMA_DJ:
+    a_precursors:
+    - FuDMA
+    b_site:
+    - name: Pb
+      ratio: 1.0
+    x_site:
+    - name: I
+      ratio: 4.0
+solvent:
+- name: DMF
+  ratio: 0.9
+- name: DMSO
+  ratio: 0.1
+target:
+  single_composition_mode: false
+  target_system: Cs0.76AVA0.08BDA0.16Pb1I1
+generation:
+  n_attempts: 10
+  batch_size: 12
+  normalize_ratios: 50
+  iterative_mode: false
+  max_experimental_cycles: 10
+  min_cycles: 3
+  improvement_threshold: 0.05
+  uncertainty_threshold: 10.0
+  quality_threshold: 1500
+  exploration_rate: 0.15
+  use_gp_guided_sampling: false
+  use_pareto_front: true
+spin_coating:
+  two_step_enabled: true
+  first_step:
+    speed_rpm:
+    - 1000
+    - 1500
+    - 2000
+    time_s:
+    - 5
+    - 10
+    - 15
+    - 20
+    acceleration_rpm_s:
+    - 500
+    - 1000
+    - 1500
+  second_step:
+    speed_rpm:
+    - 5000
+    time_s:
+    - 30
+    - 45
+    - 60
+    - 90
+    acceleration_rpm_s:
+    - 1000
+    - 1500
+    - 2000
+    - 2500
+    - 3000
+  drop_volume_ul:
+  - 40
+  - 50
+  - 60
+  - 70
+  - 80
+  dispense_height_mm:
+  - 10
+  - 12
+  - 15
+  - 18
+  - 20
+annealing:
+  temperature_c:
+  - 140
+  - 145
+  - 150
+  time_s:
+  - 360
+  - 480
+  - 600
+  - 720
+  - 900
+  - 1200
+concentration:
+  values_M:
+  - 0.3
+antisolvent:
+  use_probability: 1.0
+  volume_ul:
+  - 50
+  - 75
+  - 100
+  - 125
+  - 150
+  timing_before_end_s:
+  - 2
+  - 4
+  - 6
+  - 8
+  - 10
+  - 12
+substrate:
+  surface_energy_mJ_m2: 45.0
+  roughness_nm: 2.0
+  material: ITO/Glass
+quality_target:
+  pl_weight: 1.0
+  pl_scale: 100.0
+  fwhm_weight: 50.0
+  fwhm_ideal_nm: 30.0
+  stability_weight: 2.0
+  peak_wavelength:
+    enabled: true
+    target_nm: 770
+    tolerance_nm: 20
+    penalty_weight: 30.0
+composition_gp:
+  enabled: true
+  data_path: data/binary/11-19-25-FuFA_peak_fit_export.csv
+  fa_column: FA_Ratio
+  quality_column: Quality_Target
+  ucb_beta: 2.0
+llm_agent:
+  enabled: false
+  api_key: AIzaSyCqFhoowj_TozG9ariPSsI1if3WBoqvWpM
+  min_confidence: 0.7
+  auto_apply: false
+  film_images_dir: data/film_images
+  analysis:
+    look_back_experiments: 50
+    min_pattern_confidence: 0.5

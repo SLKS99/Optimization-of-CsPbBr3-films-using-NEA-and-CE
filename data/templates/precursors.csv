@@ -1,0 +1,16 @@
+Name,Type,Ionic_Radius_A,Molecular_Weight_g_mol,Solubility_Parameter,Lattice_Spacing_A,Dipole_Moment_D,Spacer_Length_A
+MA,A,2.17,32.09,20.5,,2.3,
+FA,A,2.53,46.11,20.0,,0.25,
+Cs,A,1.67,132.9,25.0,,0.0,
+AVA,A,,102.13,18.0,13.8,4.5,
+BDA,A,,88.15,19.0,10.4,3.2,
+Pb,B,1.19,207.2,30.0,,,
+Sn,B,1.10,118.71,30.0,,,
+I,X,2.20,126.9,28.0,,,
+Br,X,1.96,79.9,27.0,,,
+Cl,X,1.81,35.45,26.0,,,
+ODA,A,,400.08,18.8,13.7,5.8,
+FuDMA,A,,126.16,,,6.0
+NEABr,A,2.60,240.0,18.8,,4.0,
+CsBr,A,1.67,212.81,25.0,,0.0,
+CrownEther,A,3.00,264.32,18.8,,2.5,
